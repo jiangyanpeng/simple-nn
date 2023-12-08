@@ -3,7 +3,7 @@ PROJECT(simple.nn)
 
 ######## COMPILE #######
 SET(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
-SET(CMAKE_BUILD_TYPE "Release")
+SET(CMAKE_BUILD_TYPE "DEBUG")
 SET(CMAKE_CXX_FLAGS "${CAMKE_CXX_FLAGS} -std=c++11 -march=native -O3 -pthread")
 
 ######## CONFIG OPTION ######
@@ -36,7 +36,6 @@ IF(BUILD_QNN)
 
     # ADD_SUBDIRECTORY(${QNN_DIR})
     # INCLUDE(simple-lib)
-    message("HPC_INC_PATH2: ${HPC_INC_PATH}")
     INCLUDE_DIRECTORIES(${HPC_INC_PATH})
     # LIST(APPEND QNN_LIBRARIES gtest gtest_main)
     CMAKE_POLICY(POP)
