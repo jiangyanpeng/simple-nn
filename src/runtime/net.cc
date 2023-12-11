@@ -1,5 +1,8 @@
 #include "runtime/net.h"
 
+#include <iomanip>
+#include <sstream>
+
 namespace nn {
 Net::Net(const Net& net)
     : net_name_(net.net_name_),
@@ -15,6 +18,67 @@ Net& Net::operator=(const Net&) {
 
 Net::Net(const std::string& name)
     : net_name_(name), option_(nullptr), graph_(nullptr), blobs_({}), layers_({}) {}
+
+
+const std::string Net::Summary() const {
+    std::vector<pnnx::Operator*> operators = this->graph_->ops;
+    std::stringstream ss;
+    auto get_shape_str = [](const std::vector<pnnx::Operand*>& op) -> std::string {
+        std::stringstream ss;
+        if (op.size()) {
+            auto shape = op[0]->shape;
+            for (size_t i = 0; i < shape.size(); ++i) {
+                if (i == 0) {
+                    ss << "[";
+                }
+                ss << shape[i];
+                if (i != shape.size() - 1) {
+                    ss << ", ";
+                } else {
+                    ss << "]";
+                }
+            }
+        } else {
+            ss << "----";
+        }
+        return ss.str();
+    };
+
+    auto get_param_str =
+        [](const std::map<std::string, pnnx::Attribute>& attribute) -> std::string {
+        u_int64_t param_size = 0;
+        for (const auto& it : attribute) {
+            param_size += it.second.elemcount() * it.second.elemsize();
+        }
+        return std::to_string(param_size);
+    };
+
+    for (size_t i = 0; i < operators.size(); ++i) {
+        if (i == 0) {
+            ss << "----------------------------------------------------------------------------"
+                  "-------------------------------"
+               << std::endl
+               << std::left << std::setw(25) << "name" << std::left << std::setw(25) << "type"
+               << std::left << std::setw(25) << "input_shape" << std::left << std::setw(25)
+               << "output_shape" << std::left << std::setw(25) << "param" << std::endl
+               << "============================================================================"
+                  "==============================="
+               << std::endl;
+        }
+
+        ss << std::left << std::setw(25) << operators[i]->name << std::left << std::setw(25)
+           << operators[i]->type << std::left << std::setw(25)
+           << get_shape_str(operators[i]->inputs) << std::left << std::setw(25)
+           << get_shape_str(operators[i]->outputs) << std::left << std::setw(25)
+           << get_param_str(operators[i]->attrs) << std::endl;
+
+        if (i == operators.size() - 1) {
+            ss << "============================================================================"
+                  "===============================";
+        }
+    }
+    return ss.str();
+}
 
 MStatus Net::Init(const std::string& param, const std::string& bin) {
     SIMPLE_LOG_DEBUG("Net::Init Start");
@@ -37,6 +101,17 @@ MStatus Net::Init(const std::string& param, const std::string& bin) {
             ret = MStatus::M_FAILED;
             break;
         }
+
+        std::vector<pnnx::Operator*> operators = this->graph_->ops;
+        if (operators.empty()) {
+            SIMPLE_LOG_ERROR("pnnx::Graph has no any operators!");
+            ret = MStatus::M_FAILED;
+            break;
+        }
+
+        // show net details
+        printf("%s\n", Summary().c_str());
+
     } while (0);
     SIMPLE_LOG_DEBUG("Net::Init End");
     return ret;

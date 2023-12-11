@@ -28,6 +28,8 @@ public:
 
     MStatus Forward(int layer_index, std::vector<TensorPtr>& blob_mats) const;
 
+    const std::string Summary() const;
+
 private:
     Net(const Net&);
     Net& operator=(const Net&);
