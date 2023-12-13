@@ -3,9 +3,8 @@
 #include <log.h>
 
 namespace nn {
-Layer::Layer(const std::string& name, const LayerType& type) : name_(name), type_(type) {}
 
-MStatus Layer::Load(const std::shared_ptr<LayerParam>& param,
+MStatus Layer::Init(const std::shared_ptr<LayerParam>& param,
                     const std::shared_ptr<ModelBin>& bin) {
     SIMPLE_LOG_DEBUG("{} Layer::Load Start", name_);
     SIMPLE_LOG_DEBUG("{} Layer::Load End", name_);
