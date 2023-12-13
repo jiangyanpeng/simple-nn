@@ -1,10 +1,11 @@
 #ifndef SIMPLE_NN_LAYER_H_
 #define SIMPLE_NN_LAYER_H_
 
+#include "runtime/net.h"
+
 #include <common.h>
 #include <string>
 #include <tensor/tensor.h>
-
 namespace nn {
 
 class ModelBin;
@@ -20,18 +21,18 @@ public:
     };
 
 public:
-    Layer(const std::string& name, const LayerType& type);
+    Layer() = default;
     virtual ~Layer() {}
 
-    virtual MStatus Load(const std::shared_ptr<LayerParam>& param,
+    virtual MStatus Init(const std::shared_ptr<LayerParam>& param,
                          const std::shared_ptr<ModelBin>& bin);
 
     virtual MStatus Forward(const std::vector<TensorPtr>& input, std::vector<TensorPtr>& output);
 
-    const std::string Name() const { return name_; }
+    const std::string GetName() const { return name_; }
 
-    const std::vector<int> Bottom() const { return bottom_; }
-    const std::vector<int> Top() const { return top_; }
+protected:
+    friend class Net;
 
 protected:
     // layer name
@@ -41,10 +42,10 @@ protected:
     LayerType type_;
 
     // tensor shape which this layer needs as input
-    std::vector<uint8_t> input_shape_{};
+    std::vector<std::vector<uint8_t>> input_shape_{};
 
     // tensor shape which this layer produces as output
-    std::vector<uint8_t> output_shape_{};
+    std::vector<std::vector<uint8_t>> output_shape_{};
 
     // tensor index which this layer needs as input
     std::vector<int> bottom_{};

@@ -49,6 +49,9 @@ private:
 
     std::vector<int> input_blob_index_;
     std::vector<int> output_blob_index_;
+
+    std::vector<std::string> input_names_;
+    std::vector<std::string> output_names_;
 };
 } // namespace nn
 
