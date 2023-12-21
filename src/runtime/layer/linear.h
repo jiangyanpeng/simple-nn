@@ -10,8 +10,7 @@ public:
     Linear()  = default;
     ~Linear() = default;
 
-    MStatus Init(const std::shared_ptr<LayerParam>& param,
-                 const std::shared_ptr<ModelBin>& bin) override;
+    MStatus Init(const std::map<std::string, pnnx::Parameter>& params) override;
 
     MStatus Forward(const std::vector<TensorPtr>& input, std::vector<TensorPtr>& output) override;
 };

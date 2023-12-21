@@ -2,8 +2,10 @@
 
 namespace nn {
 
-MStatus Linear::Init(const std::shared_ptr<LayerParam>& param,
-                     const std::shared_ptr<ModelBin>& bin) {
+MStatus Linear::Init(const std::map<std::string, pnnx::Parameter>& params) {
+    for (const auto& param : params) {
+        printf("%s\n", param.first.c_str());
+    }
     return MStatus::M_OK;
 }
 

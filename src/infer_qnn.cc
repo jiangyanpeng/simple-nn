@@ -1,6 +1,8 @@
 #include "infer_qnn.h"
+
 #include "wrapper/qnn_wrapper.h"
 
+#include <algorithm>
 #include <mutex>
 
 namespace nn {
@@ -41,7 +43,7 @@ QnnWrapperAllocator::~QnnWrapperAllocator() {
     if (mem_map_.size() > 0) {
         for (auto it = mem_map_.begin(); it != mem_map_.end(); ++it) {
             SIMPLE_LOG_WARN(
-                "WrapperAllocator unfreed, addr: {}, size: {}\n", it->first, it->second);
+                "WrapperAllocator unfreed, addr: %p, size: %i\n", it->first, it->second);
             free(it->first);
             capacity_ -= it->second;
         }
@@ -57,24 +59,24 @@ InferQnn::~InferQnn() {
 }
 
 void InferQnn::SetConfig(const ModelConfig& config) {
-    SIMPLE_LOG_DEBUG("InferQnn::SetConfig : {}", config.engine_context);
+    SIMPLE_LOG_DEBUG("InferQnn::SetConfig : %p\n", config.engine_context);
     is_use_vndk_ = false;
     if (config.engine_context) {
         QNNContext* ctx = reinterpret_cast<QNNContext*>(const_cast<void*>(config.engine_context));
         if (ctx->backend_lib_path && ctx->backend_lib_path_len) {
             backend_lib_path_ = std::string(ctx->backend_lib_path, ctx->backend_lib_path_len);
         }
-        SIMPLE_LOG_DEBUG("ctx->backend_lib_path: {},ctx->backend_lib_path_len: {}",
+        SIMPLE_LOG_DEBUG("ctx->backend_lib_path: %s,ctx->backend_lib_path_len: %i\n",
                          ctx->backend_lib_path,
                          ctx->backend_lib_path_len);
         if (ctx->system_lib_path && ctx->system_lib_path_len) {
             system_lib_path_ = std::string(ctx->system_lib_path, ctx->system_lib_path_len);
         }
-        SIMPLE_LOG_DEBUG("ctx->system_lib_path: {},ctx->system_lib_path_len: {}",
+        SIMPLE_LOG_DEBUG("ctx->system_lib_path: %s,ctx->system_lib_path_len: %i\n",
                          ctx->system_lib_path,
                          ctx->system_lib_path_len);
         is_use_signed_pd_ = ctx->is_use_signed_pd;
-        SIMPLE_LOG_DEBUG("ctx->is_use_signed_pd: {}", ctx->is_use_signed_pd);
+        SIMPLE_LOG_DEBUG("ctx->is_use_signed_pd: %i\n", ctx->is_use_signed_pd);
 #if (defined __ARM_NEON) && ((defined __arm64__) || (defined __aarch64__))
         is_use_vndk_ = ctx->is_use_vndk;
 #endif
@@ -94,7 +96,7 @@ void InferQnn::SetConfig(const ModelConfig& config) {
 }
 
 MStatus InferQnn::Init(const std::string& path, const ModelConfig& config) {
-    SIMPLE_LOG_DEBUG("InferQnn::Init Start, {}", this->model_name_);
+    SIMPLE_LOG_DEBUG("InferQnn::Init Start, %s\n", this->model_name_.c_str());
     MStatus ret = MStatus::M_OK;
     do {
         output_layer_name_.clear();
@@ -102,14 +104,14 @@ MStatus InferQnn::Init(const std::string& path, const ModelConfig& config) {
 
         row_model_ = std::make_shared<NNModel>(path);
         if (row_model_->Size() <= 0) {
-            SIMPLE_LOG_ERROR("{} model load failed!");
+            SIMPLE_LOG_ERROR("{} model load failed\n", path.c_str());
             ret = MStatus::M_FILE_NOT_FOUND;
             break;
         }
 
         const uint8_t* data   = reinterpret_cast<const uint8_t*>(row_model_->Data().get());
         const size_t data_len = row_model_->Size();
-        SIMPLE_LOG_DEBUG("InferQnn::Init model_buffer size {}", data_len);
+        SIMPLE_LOG_DEBUG("InferQnn::Init model_buffer size %i\n", data_len);
 
         bool ret         = true;
         qnn_wrapper_ptr_ = std::unique_ptr<wrap::QnnWrapperV1>(new wrap::QnnWrapperV1());
@@ -118,7 +120,7 @@ MStatus InferQnn::Init(const std::string& path, const ModelConfig& config) {
         ret = qnn_wrapper_ptr_->initForDevice(
             backend_lib_path_, system_lib_path_, is_use_signed_pd_, is_use_vndk_);
         if (ret != true) {
-            SIMPLE_LOG_ERROR("initForDevice failed");
+            SIMPLE_LOG_ERROR("initForDevice failed\n");
             ret = MStatus::M_FAILED;
             break;
         }
@@ -126,7 +128,7 @@ MStatus InferQnn::Init(const std::string& path, const ModelConfig& config) {
         ret = qnn_wrapper_ptr_->createGraphsFromBinary(data, data_len);
         if (ret != true) {
             SIMPLE_LOG_ERROR(
-                "qnn createGraphsFromBinary failed, data: [{}], data_len: [{}]", data, data_len);
+                "qnn createGraphsFromBinary failed, data: [%p], data_len: [%i]\n", data, data_len);
             ret = MStatus::M_FAILED;
             break;
         }
@@ -143,7 +145,7 @@ MStatus InferQnn::Init(const std::string& path, const ModelConfig& config) {
                 std::find(net_output_names.begin(), net_output_names.end(), output_layer_name_[i]) -
                 net_output_names.begin();
             if (idx >= net_output_names.size()) {
-                SIMPLE_LOG_ERROR("output layer name not found {}", output_layer_name_[i]);
+                SIMPLE_LOG_ERROR("output layer name not found %s\n", output_layer_name_[i].c_str());
                 ret = MStatus::M_FAILED;
                 break;
             }
@@ -154,16 +156,16 @@ MStatus InferQnn::Init(const std::string& path, const ModelConfig& config) {
                                       static_cast<uint32_t>(net_output_dims[idx][3])});
         }
 
-        SIMPLE_LOG_DEBUG(
-            "output names: {}",
-            std::accumulate(std::next(output_layer_name_.begin()),
-                            output_layer_name_.end(),
-                            output_layer_name_[0],
-                            [](const std::string& a, const std::string& b) -> std::string {
-                                return a + "," + b;
-                            }));
+        // SIMPLE_LOG_DEBUG(
+        //     "output names: {}",
+        //     std::accumulate(std::next(output_layer_name_.begin()),
+        //                     output_layer_name_.end(),
+        //                     output_layer_name_[0],
+        //                     [](const std::string& a, const std::string& b) -> std::string {
+        //                         return a + "," + b;
+        //                     }));
     } while (0);
-    SIMPLE_LOG_DEBUG("InferQnn::Init End, {}", this->model_name_);
+    SIMPLE_LOG_DEBUG("InferQnn::Init End, %s\n", this->model_name_.c_str());
     return ret;
 }
 
@@ -172,24 +174,24 @@ MStatus InferQnn::Init(NNModelPackagePtr model_resource, const ModelConfig& conf
 }
 
 MStatus InferQnn::ReArrangeInput(std::vector<NNTensorPtr>& input) {
-    SIMPLE_LOG_DEBUG("InferQnn::ReArrangeInput Start");
+    SIMPLE_LOG_DEBUG("InferQnn::ReArrangeInput Start\n");
     auto ret = MStatus::M_OK;
     do {
         if (input.empty()) {
-            SIMPLE_LOG_ERROR("net input empty");
+            SIMPLE_LOG_ERROR("net input empty\n");
             ret = MStatus::M_FAILED;
             break;
         }
 
         for (size_t i = 0; i < input.size(); ++i) {
             if (nullptr == input[i]) {
-                SIMPLE_LOG_ERROR("net {} input is nulptr", i);
+                SIMPLE_LOG_ERROR("net %i input is nulptr\n", i);
                 ret = MStatus::M_FAILED;
                 break;
             }
 
             if (input[i]->GetElemType() != M_DATA_TYPE_FLOAT32) {
-                SIMPLE_LOG_ERROR("net {} input not support {} data type!",
+                SIMPLE_LOG_ERROR("net %i input not support %s data type\n",
                                  i,
                                  DataTypeStr[input[i]->GetElemType()]);
                 ret = MStatus::M_NOT_SUPPORT;
@@ -197,7 +199,7 @@ MStatus InferQnn::ReArrangeInput(std::vector<NNTensorPtr>& input) {
             }
 
             if (input[i]->GetMemType() != M_MEM_ON_CPU) {
-                SIMPLE_LOG_ERROR("net {} input not support {} memory type!",
+                SIMPLE_LOG_ERROR("net %i input not support %s memory type\n",
                                  i,
                                  MemTypeStr[input[i]->GetMemType()]);
                 ret = MStatus::M_NOT_SUPPORT;
@@ -207,25 +209,26 @@ MStatus InferQnn::ReArrangeInput(std::vector<NNTensorPtr>& input) {
             if (TENSOR_SHAPE_MODE_NHWC != input[i]->GetShapeMode()) {
                 // reshape
                 if (nullptr == input[i]) {
-                    SIMPLE_LOG_ERROR("{} reshape failed!", i);
+                    SIMPLE_LOG_ERROR("%i reshape failed\n", i);
                     ret = MStatus::M_FAILED;
                     break;
                 }
             }
         }
     } while (0);
-    SIMPLE_LOG_DEBUG("InferQnn::ReArrangeInput End");
+    SIMPLE_LOG_DEBUG("InferQnn::ReArrangeInput End\n");
 }
 
 MStatus InferQnn::ReArrangeOutput(std::vector<NNTensorPtr>& output) {
-    SIMPLE_LOG_DEBUG("InferQnn::ReArrangeOutput Start");
+    SIMPLE_LOG_DEBUG("InferQnn::ReArrangeOutput Start\n");
     auto ret = MStatus::M_OK;
     do {
         for (size_t i = 0; i < output.size(); ++i) {
             if (std::find(output_layer_name_.begin(),
                           output_layer_name_.end(),
                           output[i]->GetName()) != output_layer_name_.end()) {
-                SIMPLE_LOG_ERROR("{} tensor not find in output_layer_name_", output[i]->GetName());
+                SIMPLE_LOG_ERROR("%s tensor not find in output_layer_name\n",
+                                 output[i]->GetName().c_str());
                 ret = MStatus::M_FILE_NOT_FOUND;
                 break;
             }
@@ -233,7 +236,7 @@ MStatus InferQnn::ReArrangeOutput(std::vector<NNTensorPtr>& output) {
             if (TENSOR_SHAPE_MODE_NCHW != output[i]->GetShapeMode()) {
                 // reshape
                 if (nullptr == output[i]) {
-                    SIMPLE_LOG_ERROR("{} reshape failed!", i);
+                    SIMPLE_LOG_ERROR("%i reshape failed\n", i);
                     ret = MStatus::M_FAILED;
                     break;
                 }
@@ -241,18 +244,18 @@ MStatus InferQnn::ReArrangeOutput(std::vector<NNTensorPtr>& output) {
             break;
         }
     } while (0);
-    SIMPLE_LOG_DEBUG("InferQnn::ReArrangeOutput End");
+    SIMPLE_LOG_DEBUG("InferQnn::ReArrangeOutput End\n");
     return ret;
 }
 
 MStatus InferQnn::CreateNetOutput(const int batch_size, std::vector<NNTensorPtr>& output) {
-    SIMPLE_LOG_DEBUG("InferQnn::CreateNetOutput Start");
+    SIMPLE_LOG_DEBUG("InferQnn::CreateNetOutput Start\n");
     auto ret = MStatus::M_OK;
     do {
         auto net_output_names = qnn_wrapper_ptr_->getOutputNames();
         auto net_output_dims  = qnn_wrapper_ptr_->getOutputDims();
         if (net_output_names.empty() || net_output_dims.empty()) {
-            SIMPLE_LOG_ERROR("qnn net engine not init");
+            SIMPLE_LOG_ERROR("qnn net engine not init\n");
             ret = MStatus::M_FAILED;
             break;
         }
@@ -269,18 +272,18 @@ MStatus InferQnn::CreateNetOutput(const int batch_size, std::vector<NNTensorPtr>
             output[i]->SetName(net_output_names[i]);
         }
     } while (0);
-    SIMPLE_LOG_DEBUG("InferQnn::CreateNetOutput End");
+    SIMPLE_LOG_DEBUG("InferQnn::CreateNetOutput End\n");
     return ret;
 }
 
 MStatus InferQnn::CheckInputShape(std::vector<NNTensorPtr>& input) {
-    SIMPLE_LOG_DEBUG("InferQnn::CheckInputShape Start");
+    SIMPLE_LOG_DEBUG("InferQnn::CheckInputShape Start\n");
     auto ret = MStatus::M_OK;
     do {
         auto qnn_input_num = GetInputNum();
         if (qnn_input_num != input.size()) {
             SIMPLE_LOG_ERROR(
-                "input tensor num not equal qnn input: {}vs{}", input.size(), qnn_input_num);
+                "input tensor num not equal qnn input: %ivs%i\n", input.size(), qnn_input_num);
             ret = MStatus::M_FAILED;
             break;
         }
@@ -293,7 +296,7 @@ MStatus InferQnn::CheckInputShape(std::vector<NNTensorPtr>& input) {
             bool h_eq = net_dim[2] == input[i]->GetShape(2);
             bool w_eq = net_dim[3] == input[i]->GetShape(3);
             if (!n_eq || !c_eq || !h_eq || !w_eq) {
-                SIMPLE_LOG_ERROR("input shape not qnn match: [{},{},{},{}]vs[{},{},{},{}]",
+                SIMPLE_LOG_ERROR("input shape not qnn match: [%i,%i,%i,%i]vs[%i,%i,%i,%i]\n",
                                  input[i]->GetShape(0),
                                  input[i]->GetShape(1),
                                  input[i]->GetShape(2),
@@ -307,13 +310,13 @@ MStatus InferQnn::CheckInputShape(std::vector<NNTensorPtr>& input) {
             }
         }
     } while (0);
-    SIMPLE_LOG_DEBUG("InferQnn::CheckInputShape End");
+    SIMPLE_LOG_DEBUG("InferQnn::CheckInputShape End\n");
 }
 
 MStatus InferQnn::RunSingleBatch(std::vector<NNTensorPtr>& input,
                                  std::vector<NNTensorPtr>& output,
                                  uint32_t batch) {
-    SIMPLE_LOG_DEBUG("InferQnn::RunSingleBatch Start");
+    SIMPLE_LOG_DEBUG("InferQnn::RunSingleBatch Start\n");
 
     std::vector<uint8_t*> net_input_buffers(input.size(), nullptr);
     std::vector<size_t> net_input_buffers_len(input.size(), 0L);
@@ -350,14 +353,14 @@ MStatus InferQnn::RunSingleBatch(std::vector<NNTensorPtr>& input,
         }
         if (run_success != true) {
             ret = MStatus::M_FAILED;
-            SIMPLE_LOG_ERROR("qnn populateInputTensors failed!");
+            SIMPLE_LOG_ERROR("qnn populateInputTensors failed\n");
             break;
         }
 
         run_success = qnn_wrapper_ptr_->executeGraphs();
         if (run_success != true) {
             ret = MStatus::M_FAILED;
-            SIMPLE_LOG_ERROR("qnn executeGraphs failed!");
+            SIMPLE_LOG_ERROR("qnn executeGraphs failed\n");
             break;
         }
 
@@ -365,12 +368,12 @@ MStatus InferQnn::RunSingleBatch(std::vector<NNTensorPtr>& input,
             qnn_wrapper_ptr_->populateOutputBuffer(net_output_buffers, net_output_buffers_len);
         if (run_success != true) {
             ret = MStatus::M_FAILED;
-            SIMPLE_LOG_ERROR("qnn populateOutputBuffer failed!");
+            SIMPLE_LOG_ERROR("qnn populateOutputBuffer failed\n");
             break;
         }
     } while (0);
 
-    SIMPLE_LOG_DEBUG("InferQnn::RunSingleBatch End");
+    SIMPLE_LOG_DEBUG("InferQnn::RunSingleBatch End\n");
     return MStatus::M_OK;
 }
 
@@ -378,19 +381,19 @@ MStatus InferQnn::Run(std::vector<NNTensorPtr>& input,
                       std::vector<NNTensorPtr>& output,
                       const char* start,
                       const char* end) {
-    SIMPLE_LOG_DEBUG("InferQnn::Run Start");
+    SIMPLE_LOG_DEBUG("InferQnn::Run Start\n");
     MStatus ret = MStatus::M_OK;
     do {
         auto net_input = input;
         ret            = CheckInputShape(net_input);
         if (ret != MStatus::M_OK) {
-            SIMPLE_LOG_ERROR("CheckInputShape failed");
+            SIMPLE_LOG_ERROR("CheckInputShape failed\n");
             break;
         }
 
         ret = ReArrangeInput(net_input);
         if (ret != MStatus::M_OK) {
-            SIMPLE_LOG_ERROR("ReArrangeInput failed");
+            SIMPLE_LOG_ERROR("ReArrangeInput failed\n");
             break;
         }
 
@@ -398,26 +401,26 @@ MStatus InferQnn::Run(std::vector<NNTensorPtr>& input,
         std::vector<NNTensorPtr> net_output;
         ret = CreateNetOutput(batch_size, net_output);
         if (ret != MStatus::M_OK) {
-            SIMPLE_LOG_ERROR("CreateNetOutput failed");
+            SIMPLE_LOG_ERROR("CreateNetOutput failed\n");
             break;
         }
 
         for (int batch = 0; batch < batch_size; ++batch) {
             ret = RunSingleBatch(net_input, net_output, batch);
             if (ret != MStatus::M_OK) {
-                SIMPLE_LOG_ERROR("RunSingleBatch failed");
+                SIMPLE_LOG_ERROR("RunSingleBatch failed\n");
                 break;
             }
         }
 
         ret = ReArrangeOutput(net_output);
         if (ret != MStatus::M_OK) {
-            SIMPLE_LOG_ERROR("ReArangeOutput failed");
+            SIMPLE_LOG_ERROR("ReArangeOutput failed\n");
             break;
         }
         output = output_tensors_;
     } while (0);
-    SIMPLE_LOG_DEBUG("InferQnn::Run End");
+    SIMPLE_LOG_DEBUG("InferQnn::Run End\n");
     return MStatus::M_OK;
 }
 

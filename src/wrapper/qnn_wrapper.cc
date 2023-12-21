@@ -24,7 +24,7 @@ namespace wrap {
         memset(&m_qnnFunctionPointers, 0x00, sizeof(QnnFunctionPointers));
 
         if (!getQnnBackendFunctionPointers(backendPath)) {
-            SIMPLE_LOG_ERROR("Load Qnn backend library error");
+            SIMPLE_LOG_ERROR("Load Qnn backend library error\n");
             return false;
         }
 
@@ -33,7 +33,7 @@ namespace wrap {
         //     m_qnnFunctionPointers.qnnInterface.logInitialize(logQnnCallback, QNN_LOG_LEVEL_WARN))
         //     { SIMPLE_LOG_WARN("Unable to initialize logging in the backend.");
         // }
-        SIMPLE_LOG_DEBUG("qnn logInitialze is not called");
+        SIMPLE_LOG_DEBUG("qnn logInitialze is not called\n");
 
         QnnDspBackend_CustomConfig_t custom_config;
         custom_config.option = QNN_DSP_BACKEND_CONFIG_OPTION_USE_SIGNED_PROCESS_DOMAIN;
@@ -44,7 +44,7 @@ namespace wrap {
         custom_dev_config1.customConfig = &custom_config;
 
         QnnBackend_Config_t* m_backend_Config[] = {&custom_dev_config1, nullptr};
-        SIMPLE_LOG_DEBUG("is_use_signed_pd: {}", is_use_signed_pd);
+        SIMPLE_LOG_DEBUG("is_use_signed_pd: %i\n", is_use_signed_pd);
         if (is_use_signed_pd) { // use unsignedPD
             m_BackendConfig = (QnnBackend_Config_t**)m_backend_Config;
         } else { // use signedPD
@@ -54,19 +54,20 @@ namespace wrap {
         auto status = m_qnnFunctionPointers.qnnInterface.backendInitialize(
             (const QnnBackend_Config_t**)m_BackendConfig);
         if (QNN_BACKEND_NO_ERROR != status && QNN_BACKEND_ERROR_ALREADY_INITIALIZED != status) {
-            SIMPLE_LOG_ERROR("Could not initialize backend due to error = {}", status);
+            SIMPLE_LOG_ERROR("Could not initialize backend due to error = %i",
+                             static_cast<int>(status));
             return false;
         }
         if (QNN_BACKEND_ERROR_ALREADY_INITIALIZED == status) {
-            SIMPLE_LOG_WARN("A backend is already initialized and the error is ignored");
+            SIMPLE_LOG_WARN("A backend is already initialized and the error is ignored\n");
         }
 
         if (!getQnnSystemFunctionPointers(systemLibraryPath)) {
-            SIMPLE_LOG_ERROR("Load Qnn system library error");
+            SIMPLE_LOG_ERROR("Load Qnn system library error\n");
             return false;
         }
 
-        SIMPLE_LOG_INFO("Initialize backend success");
+        SIMPLE_LOG_INFO("Initialize backend success\n");
         return true;
     }
 
@@ -84,14 +85,14 @@ namespace wrap {
     bool QnnWrapperV1::createGraphsFromBinary(const uint8_t* buffer, const size_t bufferSize) {
         if (nullptr == m_qnnFunctionPointers.qnnInterface.contextCreateFromBinary ||
             nullptr == m_qnnFunctionPointers.qnnInterface.graphRetrieve) {
-            SIMPLE_LOG_ERROR("Qnn interface function hadnle is nullptr.");
+            SIMPLE_LOG_ERROR("Qnn interface function hadnle is nullptr\n");
             return false;
         }
 
         if (nullptr == m_qnnFunctionPointers.qnnSystemInterface.systemContextCreate ||
             nullptr == m_qnnFunctionPointers.qnnSystemInterface.systemContextGetBinaryInfo ||
             nullptr == m_qnnFunctionPointers.qnnSystemInterface.systemContextFree) {
-            SIMPLE_LOG_ERROR("QNN system function pointers are not populated.");
+            SIMPLE_LOG_ERROR("QNN system function pointers are not populated\n");
             return false;
         }
 
@@ -105,7 +106,7 @@ namespace wrap {
                              &graphsCount,
                              binaryCache,
                              binaryCacheSize)) {
-            SIMPLE_LOG_ERROR("Deserialize model data error");
+            SIMPLE_LOG_ERROR("Deserialize model data error\n");
             return false;
         }
 
@@ -114,7 +115,8 @@ namespace wrap {
         do {
             error = m_qnnFunctionPointers.qnnSystemInterface.systemContextCreate(&sysCtxHandle);
             if (QNN_SUCCESS != error) {
-                SIMPLE_LOG_ERROR("Could not create system handle: error = {}", error);
+                SIMPLE_LOG_ERROR("Could not create system handle: error = %i\n",
+                                 static_cast<int>(error));
                 break;
             }
 
@@ -127,19 +129,20 @@ namespace wrap {
                 &binary_info,
                 &binary_info_size);
             if (QNN_SUCCESS != error) {
-                SIMPLE_LOG_ERROR("Failed to get context binary info: error = {}", error);
+                SIMPLE_LOG_ERROR("Failed to get context binary info: error = %i\n",
+                                 static_cast<int>(error));
                 break;
             }
 
             if (!copyMetadataToGraphsInfo(binary_info, m_GraphsInfo, m_GraphsCount)) {
-                SIMPLE_LOG_ERROR("Failed to copy metadata.");
+                SIMPLE_LOG_ERROR("Failed to copy metadata\n");
                 error = QNN_MIN_ERROR_GRAPH;
                 break;
             }
 
             if (!populateTensorNamesFromMetadata(
                     graphTensorIdToNamesMap, m_GraphsInfo, m_GraphsCount)) {
-                SIMPLE_LOG_ERROR("Failed to populate tensor names from metadata.");
+                SIMPLE_LOG_ERROR("Failed to populate tensor names from metadata\n");
                 error = QNN_MIN_ERROR_GRAPH;
                 break;
             }
@@ -150,7 +153,8 @@ namespace wrap {
                 &m_context,
                 m_profileBackendHandle);
             if (QNN_SUCCESS != error) {
-                SIMPLE_LOG_ERROR("Could not create context from binary: error = {}", error);
+                SIMPLE_LOG_ERROR("Could not create context from binary: error = %i\n",
+                                 static_cast<int>(error));
                 break;
             }
 
@@ -159,9 +163,9 @@ namespace wrap {
                     m_context, (*m_GraphsInfo)[gIdx].graphName, &((*m_GraphsInfo)[gIdx].graph));
                 if (QNN_SUCCESS != error) {
                     SIMPLE_LOG_ERROR(
-                        "Unable to retrieve graph handle for graph Idx: {}, error = {}",
+                        "Unable to retrieve graph handle for graph Idx: %i, error = %i\n",
                         gIdx,
-                        error);
+                        static_cast<int>(error));
                     break;
                 }
             }
@@ -200,14 +204,14 @@ namespace wrap {
             Qnn_ErrorHandle_t error =
                 m_qnnFunctionPointers.qnnInterface.contextFree(m_context, m_profileBackendHandle);
             if (QNN_CONTEXT_NO_ERROR != error) {
-                SIMPLE_LOG_ERROR("Could not free context: error = {}", error);
+                SIMPLE_LOG_ERROR("Could not free context: error = %i\n", static_cast<int>(error));
             }
             m_context = nullptr;
         }
 
         if (m_GraphsCount > 0) {
             if (!freeGraphsInfo(&m_GraphsInfo, m_GraphsCount)) {
-                SIMPLE_LOG_ERROR("Could not free graphs");
+                SIMPLE_LOG_ERROR("Could not free graphs\n");
             }
             m_GraphsCount = 0;
         }
@@ -292,17 +296,17 @@ namespace wrap {
         GraphInfo_t graphInfo = (*m_GraphsInfo)[0];
 
         if (!setupTensors(&m_input, graphInfo.numInputTensors, (graphInfo.inputTensors))) {
-            SIMPLE_LOG_ERROR("Failure in setting up input tensors");
+            SIMPLE_LOG_ERROR("Failure in setting up input tensors\n");
             returnStatus = false;
         }
         if (!setupTensors(&m_output, graphInfo.numOutputTensors, (graphInfo.outputTensors))) {
-            SIMPLE_LOG_ERROR("Failure in setting up output tensors");
+            SIMPLE_LOG_ERROR("Failure in setting up output tensors\n");
             returnStatus = false;
         }
         if (!returnStatus) {
-            SIMPLE_LOG_ERROR("Failure in setupInputAndOutputTensors, cleaning up resources");
+            SIMPLE_LOG_ERROR("Failure in setupInputAndOutputTensors, cleaning up resources\n");
             tearDownInputAndOutputTensors();
-            SIMPLE_LOG_ERROR("Failure in setupInputAndOutputTensors, done cleaning up resources");
+            SIMPLE_LOG_ERROR("Failure in setupInputAndOutputTensors, done cleaning up resources\n");
         }
         return returnStatus;
     }
@@ -312,7 +316,7 @@ namespace wrap {
                                             DataType dataType,
                                             DataLayout layout) {
         if (nullptr == m_input) {
-            SIMPLE_LOG_ERROR("inputs is nullptr");
+            SIMPLE_LOG_ERROR("inputs is nullptr\n");
             return false;
         }
 
@@ -321,7 +325,7 @@ namespace wrap {
 
         if (inputBuffers.size() != inputCount) {
             SIMPLE_LOG_ERROR(
-                "Incorrect amount of Input Buffers for graph. Expected: {}, received: {}",
+                "Incorrect amount of Input Buffers for graph. Expected: %i, received: %i\n",
                 inputCount,
                 inputBuffers.size());
             return false;
@@ -332,7 +336,7 @@ namespace wrap {
                                      &(m_input[inputIdx]),
                                      dataType,
                                      layout)) {
-                SIMPLE_LOG_ERROR("populateInputTensor() failure for input: {}", inputIdx);
+                SIMPLE_LOG_ERROR("populateInputTensor failure for input: %i\n", inputIdx);
                 return false;
             }
         }
@@ -357,7 +361,7 @@ namespace wrap {
                                             std::vector<size_t> outBuffersLen,
                                             DataType dataType) {
         if (dataType != DataType::FLOAT) {
-            SIMPLE_LOG_ERROR("Only suport populate FLOAT output");
+            SIMPLE_LOG_ERROR("Only suport populate FLOAT output\n");
             return false;
         }
 
@@ -368,7 +372,7 @@ namespace wrap {
         uint32_t numOutputs = graphInfo.numOutputTensors;
 
         for (size_t outputIdx = 0; outputIdx < numOutputs; outputIdx++) {
-            SIMPLE_LOG_DEBUG("populate output for outputIdx: {}", outputIdx);
+            SIMPLE_LOG_DEBUG("populate output for outputIdx: %i\n", outputIdx);
             Qnn_Tensor_t& output = m_output[outputIdx];
 
             std::vector<size_t> dims;
@@ -378,7 +382,7 @@ namespace wrap {
             std::tie(returnStatus, length) = calculateLength(dims, QNN_DATATYPE_FLOAT_32);
             if (!returnStatus || length != outBuffersLen[outputIdx]) {
                 SIMPLE_LOG_ERROR(
-                    "Populate output length error: {}, {}", length, outBuffersLen[outputIdx]);
+                    "Populate output length error: %i, %i\n", length, outBuffersLen[outputIdx]);
                 return false;
             }
 
@@ -402,12 +406,12 @@ namespace wrap {
         }
         GraphInfo_t graphInfo = (*m_GraphsInfo)[0];
         if (nullptr != m_input) {
-            SIMPLE_LOG_INFO("cleaning up resources for input tensors");
+            SIMPLE_LOG_INFO("cleaning up resources for input tensors\n");
             tearDownTensors(m_input, graphInfo.numInputTensors);
             m_input = nullptr;
         }
         if (nullptr != m_output) {
-            SIMPLE_LOG_INFO("cleaning up resources for output tensors");
+            SIMPLE_LOG_INFO("cleaning up resources for output tensors\n");
             tearDownTensors(m_output, graphInfo.numOutputTensors);
             m_output = nullptr;
         }
@@ -418,7 +422,7 @@ namespace wrap {
     static inline T resolveSymbol(void* libHandle, const char* sym) {
         T ptr = (T)dlsym(libHandle, sym);
         if (ptr == nullptr) {
-            SIMPLE_LOG_ERROR("Unable to access symbol [{}]. dlerror(): {}", sym, dlerror());
+            SIMPLE_LOG_ERROR("Unable to access symbol [%s]. dlerror(): %s\n", sym, dlerror());
         }
         return ptr;
     }
@@ -426,14 +430,14 @@ namespace wrap {
     bool QnnWrapperV1::getQnnBackendFunctionPointers(std::string backendPath) {
         m_libBackendHandle = dlopen(backendPath.c_str(), RTLD_NOW | RTLD_LOCAL);
         if (nullptr == m_libBackendHandle) {
-            SIMPLE_LOG_ERROR("Unable to load backend. dlerror(): {}", dlerror());
+            SIMPLE_LOG_ERROR("Unable to load backend. dlerror(): %s\n", dlerror());
             return false;
         }
 
         // Get QNN Interface
         QnnInterfaceGetProvidersFn_t getInterfaceProviders{nullptr};
         getInterfaceProviders = resolveSymbol<QnnInterfaceGetProvidersFn_t>(
-            m_libBackendHandle, "QnnInterface_getProviders");
+            m_libBackendHandle, "QnnInterface_getProviders\n");
         if (nullptr == getInterfaceProviders) {
             return false;
         }
@@ -443,16 +447,17 @@ namespace wrap {
         Qnn_ErrorHandle_t error =
             getInterfaceProviders((const QnnInterface_t**)&interfaceProviders, &numProviders);
         if (QNN_SUCCESS != error) {
-            SIMPLE_LOG_ERROR("Failed to get interface providers. error = {}", error);
+            SIMPLE_LOG_ERROR("Failed to get interface providers. error = %i\n",
+                             static_cast<int>(error));
             return false;
         }
         if (nullptr == interfaceProviders) {
             SIMPLE_LOG_ERROR(
-                "Failed to get interface providers: null interface providers received.");
+                "Failed to get interface providers: null interface providers received\n");
             return false;
         }
         if (0 == numProviders) {
-            SIMPLE_LOG_ERROR("Failed to get interface providers: 0 interface providers.");
+            SIMPLE_LOG_ERROR("Failed to get interface providers: 0 interface providers\n");
             return false;
         }
 
@@ -468,7 +473,7 @@ namespace wrap {
         }
 
         if (!foundValidInterface) {
-            SIMPLE_LOG_ERROR("Unable to find a valid interface.");
+            SIMPLE_LOG_ERROR("Unable to find a valid interface\n");
             return false;
         }
 
@@ -478,13 +483,13 @@ namespace wrap {
     bool QnnWrapperV1::getQnnSystemFunctionPointers(std::string systemLibraryPath) {
         m_libSystemHandle = dlopen(systemLibraryPath.c_str(), RTLD_NOW | RTLD_LOCAL);
         if (nullptr == m_libSystemHandle) {
-            SIMPLE_LOG_ERROR("Unable to load system library. dlerror(): {}", dlerror());
+            SIMPLE_LOG_ERROR("Unable to load system library. dlerror(): %s\n", dlerror());
             return false;
         }
 
         QnnSystemInterfaceGetProvidersFn_t getSystemInterfaceProviders{nullptr};
         getSystemInterfaceProviders = resolveSymbol<QnnSystemInterfaceGetProvidersFn_t>(
-            m_libSystemHandle, "QnnSystemInterface_getProviders");
+            m_libSystemHandle, "QnnSystemInterface_getProviders\n");
         if (nullptr == getSystemInterfaceProviders) {
             return false;
         }
@@ -493,16 +498,17 @@ namespace wrap {
         Qnn_ErrorHandle_t error = getSystemInterfaceProviders(
             (const QnnSystemInterface_t**)&systemInterfaceProviders, &numProviders);
         if (QNN_SUCCESS != error) {
-            SIMPLE_LOG_ERROR("Failed to get system interface providers. error = {}", error);
+            SIMPLE_LOG_ERROR("Failed to get system interface providers. error = %i\n",
+                             static_cast<int>(error));
             return false;
         }
         if (nullptr == systemInterfaceProviders) {
             SIMPLE_LOG_ERROR(
-                "Failed to get system interface providers: null interface providers received.");
+                "Failed to get system interface providers: null interface providers received\n");
             return false;
         }
         if (0 == numProviders) {
-            SIMPLE_LOG_ERROR("Failed to get interface providers: 0 interface providers.");
+            SIMPLE_LOG_ERROR("Failed to get interface providers: 0 interface providers\n");
             return false;
         }
         bool foundValidSystemInterface{false};
@@ -518,7 +524,7 @@ namespace wrap {
             }
         }
         if (!foundValidSystemInterface) {
-            SIMPLE_LOG_ERROR("Unable to find a valid system interface.");
+            SIMPLE_LOG_ERROR("Unable to find a valid system interface\n");
             return false;
         }
         return true;
@@ -629,12 +635,12 @@ namespace wrap {
             static_cast<size_t>(tensorsCount * sizeof(Qnn_TensorWrapper_t)));
         m_allocator_ptr->Memset(tensorWrappers, 0x00, tensorsCount * sizeof(Qnn_TensorWrapper_t));
         if (nullptr == tensorWrappers) {
-            SIMPLE_LOG_ERROR("Failed to allocate memory for tensorWrappers.");
+            SIMPLE_LOG_ERROR("Failed to allocate memory for tensorWrappers\n");
             return false;
         }
         if (returnStatus) {
             for (size_t tIdx = 0; tIdx < tensorsCount; tIdx++) {
-                SIMPLE_LOG_DEBUG("Extracting tensorInfo for tensor Idx: {}", tIdx);
+                SIMPLE_LOG_DEBUG("Extracting tensorInfo for tensor Idx: %i\n", tIdx);
                 tensorWrappers[tIdx].name              = nullptr;
                 tensorWrappers[tIdx].tensor.id         = tensorsInfoSrc[tIdx].id;
                 tensorWrappers[tIdx].tensor.type       = tensorsInfoSrc[tIdx].type;
@@ -745,7 +751,7 @@ namespace wrap {
                                       const uint32_t numGraphs,
                                       GraphInfo_t**& graphsInfo) {
         if (!graphsInput) {
-            SIMPLE_LOG_ERROR("Received nullptr for graphsInput.");
+            SIMPLE_LOG_ERROR("Received nullptr for graphsInput\n");
             return false;
         }
         auto returnStatus = true;
@@ -756,12 +762,12 @@ namespace wrap {
             static_cast<size_t>(numGraphs * sizeof(GraphInfo_t)));
         m_allocator_ptr->Memset(graphInfoArr, 0x00, numGraphs * sizeof(GraphInfo_t));
         if (nullptr == graphsInfo || nullptr == graphInfoArr) {
-            SIMPLE_LOG_ERROR("Failure to allocate memory for *graphInfo");
+            SIMPLE_LOG_ERROR("Failure to allocate memory for *graphInfo\n");
             returnStatus = false;
         }
         if (true == returnStatus) {
             for (size_t gIdx = 0; gIdx < numGraphs; gIdx++) {
-                SIMPLE_LOG_DEBUG("Extracting graphsInfo for graph Idx: {}", gIdx);
+                SIMPLE_LOG_DEBUG("Extracting graphsInfo for graph Idx: %i\n", gIdx);
                 if (graphsInput[gIdx].version == QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_1) {
                     copyGraphsInfoV1(&graphsInput[gIdx].graphInfoV1, &graphInfoArr[gIdx]);
                 }
@@ -769,7 +775,7 @@ namespace wrap {
             }
         }
         if (true != returnStatus) {
-            SIMPLE_LOG_ERROR("Received an ERROR during extractGraphsInfo. Freeing resources.");
+            SIMPLE_LOG_ERROR("Received an ERROR during extractGraphsInfo. Freeing resources\n");
             if (graphsInfo) {
                 for (uint32_t gIdx = 0; gIdx < numGraphs; gIdx++) {
                     if (graphsInfo[gIdx]) {
@@ -795,7 +801,7 @@ namespace wrap {
                                                 GraphInfo_t**& graphsInfo,
                                                 uint32_t& graphsCount) {
         if (nullptr == binaryInfo) {
-            SIMPLE_LOG_ERROR("binaryInfo is nullptr.");
+            SIMPLE_LOG_ERROR("binaryInfo is nullptr\n");
             return false;
         }
         graphsCount = 0;
@@ -804,14 +810,14 @@ namespace wrap {
                 if (!copyGraphsInfo(binaryInfo->contextBinaryInfoV1.graphs,
                                     binaryInfo->contextBinaryInfoV1.numGraphs,
                                     graphsInfo)) {
-                    SIMPLE_LOG_ERROR("Failed while copying graphs Info.");
+                    SIMPLE_LOG_ERROR("Failed while copying graphs Info\n");
                     return false;
                 }
                 graphsCount = binaryInfo->contextBinaryInfoV1.numGraphs;
                 return true;
             }
         }
-        SIMPLE_LOG_ERROR("Unrecognized system context binary info version.");
+        SIMPLE_LOG_ERROR("Unrecognized system context binary info version\n");
         return false;
     }
 
@@ -822,7 +828,7 @@ namespace wrap {
         for (uint32_t gIdx = 0; gIdx < graphsCount; gIdx++) {
             std::string graphName = std::string((*graphsInfo)[gIdx].graphName);
             if (graphTensorIdToNamesMap.find(graphName) == graphTensorIdToNamesMap.end()) {
-                SIMPLE_LOG_ERROR("Graph [{}] not found in metadata.", graphName.c_str());
+                SIMPLE_LOG_ERROR("Graph [%s] not found in metadata\n", graphName.c_str());
                 return false;
             }
             for (uint32_t tIdx = 0; tIdx < (*graphsInfo)[gIdx].numInputTensors; tIdx++) {
@@ -830,7 +836,7 @@ namespace wrap {
                 if (graphTensorIdToNamesMap[graphName].find(tensorId) ==
                     graphTensorIdToNamesMap[graphName].end()) {
                     SIMPLE_LOG_ERROR(
-                        "Input tensor name for [{}] in graph [{}] not found in metadata.",
+                        "Input tensor name for [%i] in graph [%s] not found in metadata\n",
                         tensorId,
                         graphName.c_str());
                     return false;
@@ -844,7 +850,7 @@ namespace wrap {
                 if (graphTensorIdToNamesMap[graphName].find(tensorId) ==
                     graphTensorIdToNamesMap[graphName].end()) {
                     SIMPLE_LOG_ERROR(
-                        "Output tensor name for [{}] in graph [{}] not found in metadata.",
+                        "Output tensor name for [%i] in graph [%s] not found in metadata\n",
                         tensorId,
                         graphName.c_str());
                     return false;
@@ -861,11 +867,11 @@ namespace wrap {
                                     uint32_t tensorCount,
                                     Qnn_TensorWrapper_t* tensorWrappers) {
         if (nullptr == tensorWrappers) {
-            SIMPLE_LOG_ERROR("tensorWrappers is nullptr");
+            SIMPLE_LOG_ERROR("tensorWrappers is nullptr\n");
             return false;
         }
         if (0 == tensorCount) {
-            SIMPLE_LOG_INFO("tensor count is 0. Nothing to setup.");
+            SIMPLE_LOG_INFO("tensor count is 0. Nothing to setup\n");
             return true;
         }
         auto returnStatus = true;
@@ -873,7 +879,7 @@ namespace wrap {
             static_cast<size_t>(tensorCount * sizeof(Qnn_Tensor_t)));
         m_allocator_ptr->Memset(*tensors, 0x00, tensorCount * sizeof(Qnn_Tensor_t));
         if (nullptr == *tensors) {
-            SIMPLE_LOG_ERROR("mem alloc failed for *tensors");
+            SIMPLE_LOG_ERROR("mem alloc failed for *tensors\n");
             return returnStatus;
         }
 
@@ -893,22 +899,22 @@ namespace wrap {
             }
             ((*tensors) + tensorIdx)->clientBuf.dataSize = length;
             if (true == returnStatus) {
-                SIMPLE_LOG_DEBUG("allocateBuffer successful");
+                SIMPLE_LOG_DEBUG("allocateBuffer successful\n");
                 returnStatus = deepCopyQnnTensorInfo(((*tensors) + tensorIdx), &wrapperTensor);
             }
             if (true == returnStatus) {
-                SIMPLE_LOG_DEBUG("deepCopyQnnTensorInfo successful");
+                SIMPLE_LOG_DEBUG("deepCopyQnnTensorInfo successful\n");
                 ((*tensors) + tensorIdx)->memType = QNN_TENSORMEMTYPE_RAW;
             }
             if (true != returnStatus) {
-                SIMPLE_LOG_ERROR("Failure in setupTensors, cleaning up resources");
+                SIMPLE_LOG_ERROR("Failure in setupTensors, cleaning up resources\n");
                 if (nullptr != ((*tensors) + tensorIdx)->clientBuf.data) {
                     m_allocator_ptr->Free(((*tensors) + tensorIdx)->clientBuf.data);
                 }
                 tearDownTensors(*tensors, tensorIdx);
                 *tensors     = nullptr;
                 returnStatus = false;
-                SIMPLE_LOG_ERROR("Failure in setupTensors, done cleaning up resources");
+                SIMPLE_LOG_ERROR("Failure in setupTensors, done cleaning up resources\n");
                 return returnStatus;
             }
         }
@@ -917,7 +923,7 @@ namespace wrap {
 
     bool QnnWrapperV1::fillDims(std::vector<size_t>& dims, uint32_t* inDimensions, uint32_t rank) {
         if (nullptr == inDimensions) {
-            SIMPLE_LOG_ERROR("input dimensions is nullptr");
+            SIMPLE_LOG_ERROR("input dimensions is nullptr\n");
             return false;
         }
         for (size_t r = 0; r < rank; r++) {
@@ -935,13 +941,13 @@ namespace wrap {
 
     template <typename T>
     bool QnnWrapperV1::allocateBuffer(T** buffer, size_t& elementCount) {
-        SIMPLE_LOG_DEBUG("ElementCount: {}, sizeof(T): {}, total size: {}",
+        SIMPLE_LOG_DEBUG("ElementCount: %i, sizeof(T): %i, total size: %i\n",
                          elementCount,
                          sizeof(T),
                          elementCount * sizeof(T));
         *buffer = (T*)m_allocator_ptr->Malloc(elementCount * sizeof(T));
         if (nullptr == *buffer) {
-            SIMPLE_LOG_ERROR("mem alloc failed for *buffer");
+            SIMPLE_LOG_ERROR("mem alloc failed for *buffer\n");
             return false;
         }
         return true;
@@ -954,57 +960,57 @@ namespace wrap {
         auto returnStatus   = true;
         switch (dataType) {
             case QNN_DATATYPE_FLOAT_32:
-                SIMPLE_LOG_DEBUG("allocating float buffer");
+                SIMPLE_LOG_DEBUG("allocating float buffer\n");
                 returnStatus =
                     allocateBuffer<float>(reinterpret_cast<float**>(buffer), elementCount);
                 break;
 
             case QNN_DATATYPE_UINT_8:
             case QNN_DATATYPE_UFIXED_POINT_8:
-                SIMPLE_LOG_DEBUG("allocating uint8_t buffer");
+                SIMPLE_LOG_DEBUG("allocating uint8_t buffer\n");
                 returnStatus =
                     allocateBuffer<uint8_t>(reinterpret_cast<uint8_t**>(buffer), elementCount);
                 break;
 
             case QNN_DATATYPE_UINT_16:
             case QNN_DATATYPE_UFIXED_POINT_16:
-                SIMPLE_LOG_DEBUG("allocating uint16_t buffer");
+                SIMPLE_LOG_DEBUG("allocating uint16_t buffer\n");
                 returnStatus =
                     allocateBuffer<uint16_t>(reinterpret_cast<uint16_t**>(buffer), elementCount);
                 break;
 
             case QNN_DATATYPE_UINT_32:
-                SIMPLE_LOG_DEBUG("allocating uint32_t buffer");
+                SIMPLE_LOG_DEBUG("allocating uint32_t buffer\n");
                 returnStatus =
                     allocateBuffer<uint32_t>(reinterpret_cast<uint32_t**>(buffer), elementCount);
                 break;
 
             case QNN_DATATYPE_INT_8:
-                SIMPLE_LOG_DEBUG("allocating int8_t buffer");
+                SIMPLE_LOG_DEBUG("allocating int8_t buffer\n");
                 returnStatus =
                     allocateBuffer<int8_t>(reinterpret_cast<int8_t**>(buffer), elementCount);
                 break;
 
             case QNN_DATATYPE_INT_16:
-                SIMPLE_LOG_DEBUG("allocating int16_t buffer");
+                SIMPLE_LOG_DEBUG("allocating int16_t buffer\n");
                 returnStatus =
                     allocateBuffer<int16_t>(reinterpret_cast<int16_t**>(buffer), elementCount);
                 break;
 
             case QNN_DATATYPE_INT_32:
-                SIMPLE_LOG_DEBUG("allocating int32_t buffer");
+                SIMPLE_LOG_DEBUG("allocating int32_t buffer\n");
                 returnStatus =
                     allocateBuffer<int32_t>(reinterpret_cast<int32_t**>(buffer), elementCount);
                 break;
 
             case QNN_DATATYPE_BOOL_8:
-                SIMPLE_LOG_DEBUG("allocating bool buffer");
+                SIMPLE_LOG_DEBUG("allocating bool buffer\n");
                 returnStatus =
                     allocateBuffer<uint8_t>(reinterpret_cast<uint8_t**>(buffer), elementCount);
                 break;
 
             default:
-                SIMPLE_LOG_ERROR("Datatype not supported yet!");
+                SIMPLE_LOG_ERROR("Datatype not supported yet\n");
                 returnStatus = false;
                 break;
         }
@@ -1034,7 +1040,7 @@ namespace wrap {
         };
 
         if (g_dataTypeToSize.find(dataType) == g_dataTypeToSize.end()) {
-            SIMPLE_LOG_ERROR("Invalid qnn data type provided");
+            SIMPLE_LOG_ERROR("Invalid qnn data type provided\n");
             return std::make_tuple(false, 0);
         }
         return std::make_tuple(true, g_dataTypeToSize.find(dataType)->second);
@@ -1043,7 +1049,7 @@ namespace wrap {
     std::tuple<bool, size_t> QnnWrapperV1::calculateLength(std::vector<size_t> dims,
                                                            Qnn_DataType_t dataType) {
         if (dims.size() == 0) {
-            SIMPLE_LOG_ERROR("dims.size() is zero");
+            SIMPLE_LOG_ERROR("dims.size() is zero\n");
             return std::make_tuple(false, 0);
         }
 
@@ -1060,7 +1066,7 @@ namespace wrap {
 
     bool QnnWrapperV1::deepCopyQnnTensorInfo(Qnn_Tensor_t* dest, Qnn_Tensor_t* src) {
         if (nullptr == dest || nullptr == src) {
-            SIMPLE_LOG_ERROR("Received nullptr");
+            SIMPLE_LOG_ERROR("Received nullptr\n");
             return false;
         }
         dest->id         = src->id;
@@ -1088,17 +1094,17 @@ namespace wrap {
 
     void QnnWrapperV1::tearDownTensors(Qnn_Tensor_t* tensors, uint32_t tensorCount) {
         for (size_t tensorIdx = 0; tensorIdx < tensorCount; tensorIdx++) {
-            SIMPLE_LOG_DEBUG("freeing resources for tensor: {}", tensorIdx);
+            SIMPLE_LOG_DEBUG("freeing resources for tensor: %i\n", tensorIdx);
             if (nullptr != tensors[tensorIdx].maxDimensions) {
-                SIMPLE_LOG_DEBUG("freeing maxDimensions");
+                SIMPLE_LOG_DEBUG("freeing maxDimensions\n");
                 m_allocator_ptr->Free(tensors[tensorIdx].maxDimensions);
             }
             if (nullptr != tensors[tensorIdx].currentDimensions) {
-                SIMPLE_LOG_DEBUG("freeing currentDimensions");
+                SIMPLE_LOG_DEBUG("freeing currentDimensions\n");
                 m_allocator_ptr->Free(tensors[tensorIdx].currentDimensions);
             }
             if (nullptr != tensors[tensorIdx].clientBuf.data) {
-                SIMPLE_LOG_DEBUG("freeing clientBuf.data");
+                SIMPLE_LOG_DEBUG("freeing clientBuf.data\n");
                 m_allocator_ptr->Free(tensors[tensorIdx].clientBuf.data);
             }
         }
@@ -1111,7 +1117,7 @@ namespace wrap {
                                            DataType inputDataType,
                                            DataLayout layout) {
         if (nullptr == input) {
-            SIMPLE_LOG_ERROR("input is nullptr");
+            SIMPLE_LOG_ERROR("input is nullptr\n");
             return true;
         }
 
@@ -1127,20 +1133,20 @@ namespace wrap {
         }
 
         if (length != bufferLen) {
-            SIMPLE_LOG_ERROR("populateInputTensor length error, {} {}", bufferLen, length);
+            SIMPLE_LOG_ERROR("populateInputTensor length error, %i %i\n", bufferLen, length);
             return false;
         }
 
         if (inputDataType == DataType::FLOAT && input->dataType != QNN_DATATYPE_FLOAT_32) {
-            SIMPLE_LOG_DEBUG("Received FLOAT input, but model needs non-float input");
+            SIMPLE_LOG_DEBUG("Received FLOAT input, but model needs non-float input\n");
             if (layout == DataLayout::LAYOUT_NHWC) {
                 if (!copyFromFloatToNative(reinterpret_cast<float*>(buffer), input)) {
-                    SIMPLE_LOG_ERROR("copyFromFloatToNative failure");
+                    SIMPLE_LOG_ERROR("copyFromFloatToNative failure\n");
                     return false;
                 }
             } else { // layout == DataLayout::LAYOUT_NCHW
                 if (!copyFromFloatToNative_NHWC(reinterpret_cast<float*>(buffer), input)) {
-                    SIMPLE_LOG_ERROR("copyFromFloatToNative_NHWC failure");
+                    SIMPLE_LOG_ERROR("copyFromFloatToNative_NHWC failure\n");
                     return false;
                 }
             }
@@ -1154,7 +1160,7 @@ namespace wrap {
     // it to a tensor (Qnn_Tensor_t) buffer.
     bool QnnWrapperV1::copyFromFloatToNative(float* floatBuffer, Qnn_Tensor_t* tensor) {
         if (nullptr == floatBuffer || nullptr == tensor) {
-            SIMPLE_LOG_ERROR("copyFromFloatToNative(): received a nullptr");
+            SIMPLE_LOG_ERROR("copyFromFloatToNative(): received a nullptr\n");
             return false;
         }
 
@@ -1226,7 +1232,7 @@ namespace wrap {
                 break;
 
             default:
-                SIMPLE_LOG_ERROR("Datatype not supported yet!");
+                SIMPLE_LOG_ERROR("Datatype not supported yet\n");
                 returnStatus = false;
                 break;
         }
@@ -1235,7 +1241,7 @@ namespace wrap {
 
     bool QnnWrapperV1::copyFromFloatToNative_NHWC(float* floatBuffer, Qnn_Tensor_t* tensor) {
         if (nullptr == floatBuffer || nullptr == tensor) {
-            SIMPLE_LOG_ERROR("copyFromFloatToNative(): received a nullptr");
+            SIMPLE_LOG_ERROR("copyFromFloatToNative(): received a nullptr\n");
             return false;
         }
 
@@ -1298,7 +1304,7 @@ namespace wrap {
                 break;
 
             default:
-                SIMPLE_LOG_ERROR("Datatype not supported yet!");
+                SIMPLE_LOG_ERROR("Datatype not supported yet\n");
                 returnStatus = false;
                 break;
         }
@@ -1310,7 +1316,7 @@ namespace wrap {
     // non-float output.
     bool QnnWrapperV1::convertToFloat_NCHW(float* out, Qnn_Tensor_t* tensor) {
         if (nullptr == tensor) {
-            SIMPLE_LOG_ERROR("tensors is nullptr");
+            SIMPLE_LOG_ERROR("tensors is nullptr\n");
             return false;
         }
         std::vector<size_t> dims;
@@ -1323,7 +1329,7 @@ namespace wrap {
                                               tensor->quantizeParams.scaleOffsetEncoding.offset,
                                               tensor->quantizeParams.scaleOffsetEncoding.scale,
                                               dims)) {
-                    SIMPLE_LOG_ERROR("failure in tfNToFloat<uint8_t>");
+                    SIMPLE_LOG_ERROR("failure in tfNToFloat<uint8_t>\n");
                     returnStatus = false;
                 }
                 break;
@@ -1334,7 +1340,7 @@ namespace wrap {
                                                tensor->quantizeParams.scaleOffsetEncoding.offset,
                                                tensor->quantizeParams.scaleOffsetEncoding.scale,
                                                dims)) {
-                    SIMPLE_LOG_ERROR("failure in tfNToFloat<uint8_t>");
+                    SIMPLE_LOG_ERROR("failure in tfNToFloat<uint8_t>\n");
                     returnStatus = false;
                 }
                 break;
@@ -1342,7 +1348,7 @@ namespace wrap {
             case QNN_DATATYPE_UINT_8:
                 if (!castToFloat_NCHW<uint8_t>(
                         out, reinterpret_cast<uint8_t*>(tensor->clientBuf.data), dims)) {
-                    SIMPLE_LOG_ERROR("failure in castToFloat<uint8_t>");
+                    SIMPLE_LOG_ERROR("failure in castToFloat<uint8_t>\n");
                     returnStatus = false;
                 }
                 break;
@@ -1350,7 +1356,7 @@ namespace wrap {
             case QNN_DATATYPE_UINT_16:
                 if (!castToFloat_NCHW<uint16_t>(
                         out, reinterpret_cast<uint16_t*>(tensor->clientBuf.data), dims)) {
-                    SIMPLE_LOG_ERROR("failure in castToFloat<uint16_t>");
+                    SIMPLE_LOG_ERROR("failure in castToFloat<uint16_t>\n");
                     returnStatus = false;
                 }
                 break;
@@ -1358,7 +1364,7 @@ namespace wrap {
             case QNN_DATATYPE_UINT_32:
                 if (!castToFloat_NCHW<uint32_t>(
                         out, reinterpret_cast<uint32_t*>(tensor->clientBuf.data), dims)) {
-                    SIMPLE_LOG_ERROR("failure in castToFloat<uint32_t>");
+                    SIMPLE_LOG_ERROR("failure in castToFloat<uint32_t>\n");
                     returnStatus = false;
                 }
                 break;
@@ -1366,7 +1372,7 @@ namespace wrap {
             case QNN_DATATYPE_INT_8:
                 if (!castToFloat_NCHW<int8_t>(
                         out, reinterpret_cast<int8_t*>(tensor->clientBuf.data), dims)) {
-                    SIMPLE_LOG_ERROR("failure in castToFloat<int8_t>");
+                    SIMPLE_LOG_ERROR("failure in castToFloat<int8_t>\n");
                     returnStatus = false;
                 }
                 break;
@@ -1374,7 +1380,7 @@ namespace wrap {
             case QNN_DATATYPE_INT_16:
                 if (!castToFloat_NCHW<int16_t>(
                         out, reinterpret_cast<int16_t*>(tensor->clientBuf.data), dims)) {
-                    SIMPLE_LOG_ERROR("failure in castToFloat<int16_t>");
+                    SIMPLE_LOG_ERROR("failure in castToFloat<int16_t>\n");
                     returnStatus = false;
                 }
                 break;
@@ -1382,7 +1388,7 @@ namespace wrap {
             case QNN_DATATYPE_INT_32:
                 if (!castToFloat_NCHW<int32_t>(
                         out, reinterpret_cast<int32_t*>(tensor->clientBuf.data), dims)) {
-                    SIMPLE_LOG_ERROR("failure in castToFloat<int32_t>");
+                    SIMPLE_LOG_ERROR("failure in castToFloat<int32_t>\n");
                     returnStatus = false;
                 }
                 break;
@@ -1390,13 +1396,13 @@ namespace wrap {
             case QNN_DATATYPE_BOOL_8:
                 if (!castToFloat_NCHW<uint8_t>(
                         out, reinterpret_cast<uint8_t*>(tensor->clientBuf.data), dims)) {
-                    SIMPLE_LOG_ERROR("failure in castToFloat<bool>");
+                    SIMPLE_LOG_ERROR("failure in castToFloat<bool>\n");
                     returnStatus = false;
                 }
                 break;
 
             default:
-                SIMPLE_LOG_ERROR("Datatype not supported yet!");
+                SIMPLE_LOG_ERROR("Datatype not supported yet\n");
                 returnStatus = false;
                 break;
         }
@@ -1420,7 +1426,7 @@ namespace wrap {
 
     bool QnnWrapperV1::freeGraphsInfo(GraphInfoPtr_t** graphsInfo, uint32_t numGraphs) {
         if (graphsInfo == nullptr || *graphsInfo == nullptr) {
-            SIMPLE_LOG_ERROR("freeGraphsInfo() invalid graphsInfo.");
+            SIMPLE_LOG_ERROR("freeGraphsInfo() invalid graphsInfo\n");
             return false;
         }
         for (uint32_t i = 0; i < numGraphs; i++) {

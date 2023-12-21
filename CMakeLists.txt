@@ -1,5 +1,8 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
-PROJECT(simple.nn)
+PROJECT("simple.nn" C CXX)
+
+######## VERSION #######
+SET(SIMPLE_FLOW_VERSION "3.0.0")
 
 ######## COMPILE #######
 SET(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
@@ -11,7 +14,6 @@ OPTION(BUILD_USE_AVX           "Use AVX"                    OFF)
 OPTION(BUILD_TEST              "Build GooleTest"            OFF)
 OPTION(BUILD_LOG               "Build spdlog"               OFF)
 
-SET(SIMPLE_FLOW_VERSION "1.0.0")
 IF(BUILD_LOG)
     # SET(CONFIG_SIMPLE_BASE_ENABLE_SPDLOG 1)
     ADD_DEFINITIONS(-DCONFIG_SIMPLE_BASE_ENABLE_SPDLOG)

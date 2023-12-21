@@ -1,6 +1,7 @@
 #ifndef SIMPLE_NN_LAYER_H_
 #define SIMPLE_NN_LAYER_H_
 
+#include "pnnx/ir.h"
 #include "runtime/net.h"
 
 #include <common.h>
@@ -8,24 +9,17 @@
 #include <tensor/tensor.h>
 namespace nn {
 
-class ModelBin;
 enum class LayerType {};
 
 class Layer {
 public:
     using TensorPtr = std::shared_ptr<base::Tensor>;
 
-    class LayerParam {
-        LayerParam() {}
-        virtual ~LayerParam() {}
-    };
-
 public:
     Layer() = default;
     virtual ~Layer() {}
 
-    virtual MStatus Init(const std::shared_ptr<LayerParam>& param,
-                         const std::shared_ptr<ModelBin>& bin);
+    virtual MStatus Init(const std::map<std::string, pnnx::Parameter>& params);
 
     virtual MStatus Forward(const std::vector<TensorPtr>& input, std::vector<TensorPtr>& output);
 

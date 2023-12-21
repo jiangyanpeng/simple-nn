@@ -6,12 +6,12 @@ namespace nn {
 NNModel::NNModel(const std::string& path) : path_(path), inited_(false), data_(nullptr) {}
 
 MStatus NNModel::Init(const std::string& path) {
-    SIMPLE_LOG_DEBUG("NNModel::NNModel {} Init Start", path.c_str());
+    SIMPLE_LOG_DEBUG("NNModel::NNModel %s Init Start\n", path.c_str());
     auto ret = MStatus::M_OK;
     do {
         file_ = fopen(path.c_str(), "rb");
         if (!file_) {
-            SIMPLE_LOG_ERROR("failed open {}", path.c_str());
+            SIMPLE_LOG_ERROR("failed open %s\n", path.c_str());
             ret = MStatus::M_FILE_NOT_FOUND;
             break;
         }
@@ -22,14 +22,14 @@ MStatus NNModel::Init(const std::string& path) {
 
         data_ = std::unique_ptr<uint8_t>(new uint8_t[size_]);
         if (!Read(static_cast<void*>(data_.get()), size_, size_)) {
-            SIMPLE_LOG_ERROR("read model buffer faile");
+            SIMPLE_LOG_ERROR("read model buffer faile\n");
             ret = MStatus::M_FAILED;
             break;
         }
 
         inited_ = true;
     } while (0);
-    SIMPLE_LOG_DEBUG("NNModel::NNModel {} Init End", path.c_str());
+    SIMPLE_LOG_DEBUG("NNModel::NNModel %s Init End\n", path.c_str());
     return ret;
 }
 
@@ -41,7 +41,7 @@ NNModel::~NNModel() {
 
 MStatus NNModel::Seek(size_t pos) {
     if (pos >= size_) {
-        SIMPLE_LOG_ERROR("NNModel::Seek failed, {} out of range : {} ", pos, size_);
+        SIMPLE_LOG_ERROR("NNModel::Seek failed, %i out of range : %i\n", pos, size_);
         return MStatus::M_OUT_OF_MEMORY;
     }
     fseek(file_, static_cast<long>(pos), SEEK_SET);
@@ -49,7 +49,7 @@ MStatus NNModel::Seek(size_t pos) {
 
 size_t NNModel::Read(void* buf, size_t size, size_t nmenb) {
     if (size * nmenb < size_) {
-        SIMPLE_LOG_ERROR("NNModel::Read failed, size : {} smaller than {} ", size, size_);
+        SIMPLE_LOG_ERROR("NNModel::Read failed, size : %i smaller than %i\n", size, size_);
         return 0;
     }
     return fread(buf, size, nmenb, file_);
