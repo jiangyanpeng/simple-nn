@@ -6,12 +6,12 @@
 namespace nn {
 constexpr char kInputType[] = "pnnx.Input";
 class Source : public Layer {
+
 public:
     Source()  = default;
     ~Source() = default;
 
-    MStatus Init(const std::shared_ptr<LayerParam>& param,
-                 const std::shared_ptr<ModelBin>& bin) override;
+    MStatus Init(const std::map<std::string, pnnx::Parameter>& params) override;
 
     MStatus Forward(const std::vector<TensorPtr>& input, std::vector<TensorPtr>& output) override;
 };

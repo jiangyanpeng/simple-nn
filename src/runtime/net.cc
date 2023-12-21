@@ -1,4 +1,5 @@
 #include "runtime/net.h"
+
 #include "runtime/layer_register.h"
 
 #include <iomanip>
@@ -84,30 +85,31 @@ const std::string Net::Summary() const {
 }
 
 MStatus Net::Init(const std::string& param, const std::string& bin) {
-    SIMPLE_LOG_DEBUG("Net::Init Start");
+    SIMPLE_LOG_DEBUG("Net::Init Start\n");
     MStatus ret = MStatus::M_OK;
     do {
         if (param.empty() || bin.empty()) {
-            SIMPLE_LOG_ERROR("input param or bin path error! param:{}, bin:{}", param, bin);
+            SIMPLE_LOG_ERROR(
+                "input param or bin path error! param:%s, bin:%s\n", param.c_str(), bin.c_str());
             ret = MStatus::M_INVALID_ARG;
             break;
         }
         this->graph_.reset(new pnnx::Graph());
         if (nullptr == this->graph_) {
-            SIMPLE_LOG_ERROR("pnnx::Graph create failed!");
+            SIMPLE_LOG_ERROR("pnnx::Graph create failed\n");
             ret = MStatus::M_INTERNAL_FAILED;
             break;
         }
-        SIMPLE_LOG_DEBUG("pnnx::Graph load {}, {}", param, bin);
+        SIMPLE_LOG_DEBUG("pnnx::Graph load %s, %s\n", param.c_str(), bin.c_str());
         if (this->graph_->load(param, bin) < 0) {
-            SIMPLE_LOG_ERROR("pnnx::Graph load param and bin failed!");
+            SIMPLE_LOG_ERROR("pnnx::Graph load param and bin failed\n");
             ret = MStatus::M_FAILED;
             break;
         }
 
         std::vector<pnnx::Operator*> operators = this->graph_->ops;
         if (operators.empty()) {
-            SIMPLE_LOG_ERROR("pnnx::Graph has no any operators!");
+            SIMPLE_LOG_ERROR("pnnx::Graph has no any operators\n");
             ret = MStatus::M_FAILED;
             break;
         }
@@ -118,13 +120,14 @@ MStatus Net::Init(const std::string& param, const std::string& bin) {
         int layer_count = static_cast<int>(this->graph_->ops.size());
         int blob_count  = static_cast<int>(this->graph_->operands.size());
         if (layer_count <= 0 || blob_count <= 0) {
-            SIMPLE_LOG_ERROR("layer_count[{}] or blob_count[{}] invalid", layer_count, blob_count);
+            SIMPLE_LOG_ERROR(
+                "layer_count[%i] or blob_count[%i] invalid\n", layer_count, blob_count);
             ret = MStatus::M_INVALID_ARG;
             break;
         }
         layers_.resize(layer_count);
         blobs_.resize(blob_count);
-        
+
         // TODO: check model magic number
 
         for (int i = 0; i < layer_count; ++i) {
@@ -132,7 +135,7 @@ MStatus Net::Init(const std::string& param, const std::string& bin) {
             int top_count          = static_cast<int>(this->graph_->ops[i]->outputs.size());
             std::string layer_name = this->graph_->ops[i]->name;
             std::string type       = this->graph_->ops[i]->type;
-            SIMPLE_LOG_DEBUG("create [{}:{}] layer, bottom: {}, top: {}",
+            SIMPLE_LOG_DEBUG("create [%s:%s] layer, bottom: %i, top: %i\n",
                              layer_name,
                              type,
                              bottom_count,
@@ -147,28 +150,28 @@ MStatus Net::Init(const std::string& param, const std::string& bin) {
 
             auto layer_type_ptr = layer_map.find(this->graph_->ops[i]->type);
             if (layer_type_ptr == layer_map.end()) {
-                SIMPLE_LOG_ERROR("layer map can't find {} layer", this->graph_->ops[i]->type);
+                SIMPLE_LOG_ERROR("layer map can't find %s layer\n",
+                                 this->graph_->ops[i]->type.c_str());
                 ret = MStatus::M_NOT_SUPPORT;
                 break;
             }
 
             auto layer = RegisterBase<Layer>::GetInstance().Create(layer_type_ptr->second);
             if (!layer) {
-                SIMPLE_LOG_ERROR("get [{}:{}] layer failed!",
-                                 this->graph_->ops[i]->name,
-                                 this->graph_->ops[i]->type);
+                SIMPLE_LOG_ERROR("get [%s:%s] layer failed\n",
+                                 this->graph_->ops[i]->name.c_str(),
+                                 this->graph_->ops[i]->type.c_str());
                 ret = MStatus::M_NOT_SUPPORT;
                 break;
             }
 
-            SIMPLE_LOG_DEBUG("create {} layer input blob", layer_type_ptr->second);
             layer->bottom_.resize(bottom_count);
             for (int j = 0; j < bottom_count; ++j) {
                 std::string input_idx = this->graph_->ops[i]->inputs[j]->name;
                 std::regex rx("[0-9]+");
                 if (!std::regex_match(input_idx.begin(), input_idx.end(), rx)) {
-                    SIMPLE_LOG_ERROR("cread blob failed!, {} layer, {} blob is not number",
-                                     this->graph_->ops[i]->name,
+                    SIMPLE_LOG_ERROR("cread blob failed!, %s layer, %i blob is not number\n",
+                                     this->graph_->ops[i]->name.c_str(),
                                      input_idx);
                     ret = MStatus::M_NOT_SUPPORT;
                     break;
@@ -179,14 +182,13 @@ MStatus Net::Init(const std::string& param, const std::string& bin) {
                 layer->bottom_[j]     = bottom_blob_index;
             }
 
-            SIMPLE_LOG_DEBUG("create {} layer output blob", layer_type_ptr->second);
             layer->top_.resize(top_count);
             for (int j = 0; j < top_count; ++j) {
                 std::string output_idx = this->graph_->ops[i]->outputs[j]->name;
                 std::regex rx("[0-9]+");
                 if (!std::regex_match(output_idx.begin(), output_idx.end(), rx)) {
-                    SIMPLE_LOG_ERROR("create blob failed!, {} layer, {} blob is not number",
-                                     this->graph_->ops[i]->name,
+                    SIMPLE_LOG_ERROR("create blob failed!, %s layer, %i blob is not number\n",
+                                     this->graph_->ops[i]->name.c_str(),
                                      output_idx);
                     ret = MStatus::M_NOT_SUPPORT;
                     break;
@@ -203,13 +205,13 @@ MStatus Net::Init(const std::string& param, const std::string& bin) {
         }
 
     } while (0);
-    SIMPLE_LOG_DEBUG("Net::Init End");
+    SIMPLE_LOG_DEBUG("Net::Init End\n");
     return ret;
 }
 
 MStatus Net::Forward(int layer_index, std::vector<TensorPtr>& blob_mats) const {
     if (layer_index < static_cast<int>(layers_.size()) || layer_index < 0) {
-        SIMPLE_LOG_ERROR("Net::Forward index out of range, {}vs{}", layer_index, layers_.size());
+        SIMPLE_LOG_ERROR("Net::Forward index out of range, %ivs%i", layer_index, layers_.size());
         return MStatus::M_OUT_OF_MEMORY;
     }
 
@@ -218,8 +220,8 @@ MStatus Net::Forward(int layer_index, std::vector<TensorPtr>& blob_mats) const {
         int bottom_index = layer->bottom_[i];
         auto ret         = Forward(blobs_[bottom_index].producer, blob_mats);
         if (ret != MStatus::M_OK) {
-            SIMPLE_LOG_ERROR("Net::Forward failed, layer_name: {}, bottom_index: {}",
-                             layer->GetName(),
+            SIMPLE_LOG_ERROR("Net::Forward failed, layer_name: %s, bottom_index: %i\n",
+                             layer->GetName().c_str(),
                              bottom_index);
             return ret;
         }
@@ -235,7 +237,7 @@ int Net::find_blob_index_by_name(const std::string& name) {
             break;
         }
     }
-    SIMPLE_LOG_DEBUG("Net::find_blob_index_by_name name:{}, index:{}", name, index);
+    SIMPLE_LOG_DEBUG("Net::find_blob_index_by_name name:%s, index:%i\n", name.c_str(), index);
 }
 
 int Net::find_layer_index_by_name(const std::string& name) {
@@ -247,6 +249,6 @@ int Net::find_layer_index_by_name(const std::string& name) {
             break;
         }
     }
-    SIMPLE_LOG_DEBUG("Net::find_layer_index_by_name name:{}, index:{}", name, index);
+    SIMPLE_LOG_DEBUG("Net::find_layer_index_by_name name:%s, index:%i\n", name.c_str(), index);
 }
 } // namespace nn

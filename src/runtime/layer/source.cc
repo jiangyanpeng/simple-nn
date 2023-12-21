@@ -2,8 +2,7 @@
 
 namespace nn {
 
-MStatus Source::Init(const std::shared_ptr<LayerParam>& param,
-                     const std::shared_ptr<ModelBin>& bin) {
+MStatus Source::Init(const std::map<std::string, pnnx::Parameter>& params) {
     return MStatus::M_OK;
 }
 
