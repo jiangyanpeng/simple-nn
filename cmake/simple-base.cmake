@@ -17,7 +17,7 @@ if(NOT APPLE)
         -DCMAKE_CXX_FLAGS:STRING="-w"
         -DCMAKE_C_FLAGS:STRING="-fPIC"
         -DCMAKE_C_FLAGS:STRING="-w")
-    list(APPEND BASE_CMAKE_ARGS -DCMAKE_POSITION_INDEPENDENT_CODE=ON)
+    list(APPEND BASE_CMAKE_ARGS -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DBUILD_LOG=ON)
 endif()
 
 if(ANDROID)
@@ -37,7 +37,7 @@ endif()
 
 pipe_download_dependency(
     "https://github.com/jiangyanpeng/simple.base.git"
-    v3.0.1
+    v3.0.2
     ${BASE_NAME}
     ${BASE_WORK_DIR}
     )

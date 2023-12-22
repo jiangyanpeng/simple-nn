@@ -10,7 +10,8 @@
 namespace nn {
 
 enum class LayerType {};
-
+static constexpr char kWeight[] = "weight";
+static constexpr char kBias[]   = "bias";
 class Layer {
 public:
     using TensorPtr = std::shared_ptr<base::Tensor>;
@@ -19,9 +20,10 @@ public:
     Layer() = default;
     virtual ~Layer() {}
 
-    virtual MStatus Init(const std::map<std::string, pnnx::Parameter>& params);
+    virtual MStatus Init(const std::map<std::string, pnnx::Parameter>& params,
+                         const std::map<std::string, pnnx::Attribute>& attrs);
 
-    virtual MStatus Forward(const std::vector<TensorPtr>& input, std::vector<TensorPtr>& output);
+    virtual MStatus Forward(const TensorPtr& input, TensorPtr& output);
 
     const std::string GetName() const { return name_; }
 
@@ -49,6 +51,9 @@ protected:
 
     // custom user data
     std::shared_ptr<uint8_t> data_{nullptr};
+
+    TensorPtr weight_;
+    TensorPtr bias_;
 };
 } // namespace nn
 

@@ -136,8 +136,8 @@ MStatus Net::Init(const std::string& param, const std::string& bin) {
             std::string layer_name = this->graph_->ops[i]->name;
             std::string type       = this->graph_->ops[i]->type;
             SIMPLE_LOG_DEBUG("create [%s:%s] layer, bottom: %i, top: %i\n",
-                             layer_name,
-                             type,
+                             layer_name.c_str(),
+                             type.c_str(),
                              bottom_count,
                              top_count);
             // find input and output
@@ -200,7 +200,7 @@ MStatus Net::Init(const std::string& param, const std::string& bin) {
             }
 
             // load param to layer
-
+            layer->Init(this->graph_->ops[i]->params, this->graph_->ops[i]->attrs);
             layers_[i] = std::move(layer);
         }
 

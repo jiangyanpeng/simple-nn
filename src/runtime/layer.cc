@@ -4,13 +4,14 @@
 
 namespace nn {
 
-MStatus Layer::Init(const std::map<std::string, pnnx::Parameter>& params) {
+MStatus Layer::Init(const std::map<std::string, pnnx::Parameter>& params,
+                    const std::map<std::string, pnnx::Attribute>& attrs) {
     SIMPLE_LOG_DEBUG("{} Layer::Load Start\n", name_);
     SIMPLE_LOG_DEBUG("{} Layer::Load End\n", name_);
     return MStatus::M_OK;
 }
 
-MStatus Layer::Forward(const std::vector<TensorPtr>& input, std::vector<TensorPtr>& output) {
+MStatus Layer::Forward(const TensorPtr& input, TensorPtr& output) {
     SIMPLE_LOG_DEBUG("{} Layer::Load Start\n", name_);
     SIMPLE_LOG_DEBUG("{} Layer::Load End\n", name_);
     return MStatus::M_NOT_SUPPORT;

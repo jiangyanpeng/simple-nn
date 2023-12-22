@@ -10,9 +10,15 @@ public:
     Linear()  = default;
     ~Linear() = default;
 
-    MStatus Init(const std::map<std::string, pnnx::Parameter>& params) override;
+    MStatus Init(const std::map<std::string, pnnx::Parameter>& params,
+                 const std::map<std::string, pnnx::Attribute>& attrs) override;
 
-    MStatus Forward(const std::vector<TensorPtr>& input, std::vector<TensorPtr>& output) override;
+    MStatus Forward(const TensorPtr& input, TensorPtr& output) override;
+
+private:
+    uint32_t in_features_{0};
+    uint32_t out_features_{0};
+    bool has_bias_{false};
 };
 } // namespace nn
 

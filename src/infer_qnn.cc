@@ -206,7 +206,7 @@ MStatus InferQnn::ReArrangeInput(std::vector<NNTensorPtr>& input) {
                 break;
             }
 
-            if (TENSOR_SHAPE_MODE_NHWC != input[i]->GetShapeMode()) {
+            if (TENSOR_SHAPE_MODE_NHWC != input[i]->GetShapeModeStr()) {
                 // reshape
                 if (nullptr == input[i]) {
                     SIMPLE_LOG_ERROR("%i reshape failed\n", i);
@@ -233,7 +233,7 @@ MStatus InferQnn::ReArrangeOutput(std::vector<NNTensorPtr>& output) {
                 break;
             }
 
-            if (TENSOR_SHAPE_MODE_NCHW != output[i]->GetShapeMode()) {
+            if (TENSOR_SHAPE_MODE_NCHW != output[i]->GetShapeModeStr()) {
                 // reshape
                 if (nullptr == output[i]) {
                     SIMPLE_LOG_ERROR("%i reshape failed\n", i);
@@ -336,7 +336,7 @@ MStatus InferQnn::RunSingleBatch(std::vector<NNTensorPtr>& input,
         net_output_buffers[i] = output[i]->GetData<uint8_t>() + batch * net_output_buffers_len[i];
     }
 
-    auto input_shape_mode = input[0]->GetShapeMode();
+    auto input_shape_mode = input[0]->GetShapeModeStr();
     bool run_success      = true;
     auto ret              = MStatus::M_OK;
     do {

@@ -11,9 +11,10 @@ public:
     Source()  = default;
     ~Source() = default;
 
-    MStatus Init(const std::map<std::string, pnnx::Parameter>& params) override;
+    MStatus Init(const std::map<std::string, pnnx::Parameter>& params,
+                 const std::map<std::string, pnnx::Attribute>& attrs) override;
 
-    MStatus Forward(const std::vector<TensorPtr>& input, std::vector<TensorPtr>& output) override;
+    MStatus Forward(const TensorPtr& input, TensorPtr& output) override;
 };
 } // namespace nn
 #endif // SIMPLE_NN_INPUT_H_
